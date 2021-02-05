@@ -1,12 +1,12 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { Team } from './interfaces';
-import { generateTeamFromData } from './utils';
+import {HttpClient} from '@angular/common/http';
+import {Injectable} from '@angular/core';
+import {Observable} from 'rxjs';
+import {filter, map, tap} from 'rxjs/operators';
+import {Boxscore, Team} from './interfaces';
+import {generateBoxscoreFromData, generateTeamFromData} from './utils';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class NgEspnFantasyFootballService {
   private baseUrl = 'https://fantasy.espn.com/apis/v3/games/ffl/seasons';
@@ -19,8 +19,8 @@ export class NgEspnFantasyFootballService {
         .replace(/^ +/, '')
         .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
     });
-    // document.cookie = `espn_s2=${espnS2};SameSite=None;Secure`;
-    // document.cookie = `SWID=${SWID};SameSite=None;Secure`;
+    document.cookie = `espn_s2=${espnS2};SameSite=None;Secure`;
+    document.cookie = `SWID=${SWID};SameSite=None;Secure`;
   }
 
   /**
@@ -37,10 +37,31 @@ export class NgEspnFantasyFootballService {
   ): Observable<Team[]> {
     const url = `${this.baseUrl}/${seasonId}/segments/0/leagues/${leagueId}?scoringPeriodId=${scoringPeriodId}&view=mRoster&view=mTeam`;
     return this.http
-      .get<any>(url, {withCredentials: false})
+      .get<any>(url, {withCredentials: true})
       .pipe(
         map(response =>
           response.teams.map((data: any) => generateTeamFromData(data))
+        )
+      );
+  }
+
+  getBoxscoresAtWeek(
+    leagueId: number,
+    seasonId: number,
+    scoringPeriodId: number,
+    matchupPeriodId: number
+  ): Observable<Boxscore[]> {
+    const url = `${this.baseUrl}/${seasonId}/segments/0/leagues/${leagueId}?view=mMatchup&view=mMatchupScore&scoringPeriodId=${scoringPeriodId}`;
+    return this.http
+      .get<any>(url, {withCredentials: true})
+      .pipe(
+        map(response =>
+          response.schedule.filter(
+            (sch: any) => sch.matchupPeriodId === matchupPeriodId
+          )
+        ),
+        map(schedule =>
+          schedule.map((data: any) => generateBoxscoreFromData(data))
         )
       );
   }
